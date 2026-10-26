@@ -1,0 +1,11 @@
+{
+  "summary": "Add Python type hints to the helper functions in src/peft/tuners/lora/config.py.",
+  "difficulty": "easy",
+  "difficulty_reason": "Only one file changes and no behaviour changes.",
+  "you_will_learn": "How Python type hints work and how PEFT configures LoRA.",
+  "first_steps": [
+    "Fork the repo and set up a development install.",
+    "Open src/peft/tuners/lora/config.py and add type hints to each helper.",
+    "Run the existing tests to check nothing broke."
+  ]
+}

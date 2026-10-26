@@ -35,21 +35,23 @@ def to_pool_entry(item, repo, now):
     }
 
 
-def _terms(profile):
-    """Lowercase match terms from the profile; 'LLMs' also matches 'llm'."""
-    terms = set()
+def matched_terms(issue, profile):
+    """Profile words (languages + interests) found in the issue's title, body or labels.
+
+    Matching ignores case, and a plural like 'LLMs' also matches 'llm'.
+    """
+    text = " ".join([issue["title"], issue["body"], " ".join(issue["labels"])]).lower()
+    matched = []
     for word in profile.get("languages", []) + profile.get("interests", []):
-        word = word.lower()
-        terms.add(word)
-        if word.endswith("s"):
-            terms.add(word[:-1])
-    return terms
+        needle = word.lower().removesuffix("s")
+        if needle in text:
+            matched.append(word)
+    return matched
 
 
 def score_issue(issue, profile, max_age_days, now):
-    """Higher is better: +1 per profile term matched, up to +3 for freshness, -0.5 per comment."""
-    text = " ".join([issue["title"], issue["body"], " ".join(issue["labels"])]).lower()
-    skill = sum(1 for term in _terms(profile) if term in text)
+    """Higher is better: +1 per profile word matched, up to +3 for freshness, -0.5 per comment."""
+    skill = len(matched_terms(issue, profile))
 
     created = datetime.fromisoformat(issue["created_at"].replace("Z", "+00:00"))
     age_days = (now - created).days
