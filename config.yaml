@@ -1,0 +1,30 @@
+repos:
+  - huggingface/transformers
+  - huggingface/datasets
+  - huggingface/peft
+  - langchain-ai/langchain
+  - run-llama/llama_index
+  - gradio-app/gradio
+  - scikit-learn/scikit-learn
+  - keras-team/keras
+
+labels:
+  - "good first issue"
+  - "good-first-issue"
+  - "beginner"
+  - "easy"
+  - "Good First Issue"
+
+profile:
+  languages: ["Python"]
+  interests: ["LLMs", "NLP"]
+  level: "beginner"
+
+schedule:
+  mode: "daily"        # "daily" or "weekly"
+  send_day: "sunday"   # used only when mode is "weekly" (UTC)
+
+top_n: 5
+recheck_pool: 15
+max_age_days: 60
+model: "gemma3:4b"
