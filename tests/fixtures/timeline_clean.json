@@ -1,0 +1,11 @@
+[
+  {"event": "labeled", "label": {"name": "good first issue"}},
+  {"event": "commented", "body": "Thanks for the report!"},
+  {
+    "event": "cross-referenced",
+    "source": {
+      "type": "issue",
+      "issue": {"number": 90, "html_url": "https://github.com/huggingface/peft/issues/90"}
+    }
+  }
+]

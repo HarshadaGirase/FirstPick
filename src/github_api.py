@@ -73,6 +73,18 @@ def get(session, path, params=None):
     raise GitHubError(f"GET {url} still rate limited after {MAX_RETRIES} tries")
 
 
+def get_all(session, path):
+    """GET every page of a list endpoint (follows the Link: next header)."""
+    items = []
+    url, params = path, {"per_page": 100}
+    while url:
+        response = get(session, url, params)
+        items.extend(response.json())
+        url = response.links.get("next", {}).get("url")
+        params = None  # the next URL already carries the query string
+    return items
+
+
 def repo_exists(session, full_name):
     """True if the repo exists; False on 404. Other errors are raised."""
     response = session.get(f"{API}/repos/{full_name}", timeout=30)

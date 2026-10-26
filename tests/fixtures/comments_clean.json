@@ -1,0 +1,4 @@
+[
+  {"user": {"login": "maintainer"}, "body": "Good catch, a PR is welcome."},
+  {"user": {"login": "reader"}, "body": "I hit this too, the docs are unclear."}
+]

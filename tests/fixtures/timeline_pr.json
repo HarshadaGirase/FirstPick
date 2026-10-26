@@ -1,0 +1,14 @@
+[
+  {"event": "labeled", "label": {"name": "good first issue"}},
+  {
+    "event": "cross-referenced",
+    "source": {
+      "type": "issue",
+      "issue": {
+        "number": 120,
+        "html_url": "https://github.com/huggingface/peft/pull/120",
+        "pull_request": {"url": "https://api.github.com/repos/huggingface/peft/pulls/120"}
+      }
+    }
+  }
+]
