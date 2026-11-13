@@ -1,0 +1,88 @@
+name: FirstPick
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'    # collect
+    - cron: '30 13 * * *'    # send (7 PM IST)
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Which command to run
+        type: choice
+        options: [collect, send, force-send]
+        default: collect
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: firstpick
+  cancel-in-progress: false
+
+jobs:
+  firstpick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Pick command
+        id: cmd
+        env:
+          EVENT: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          INPUT: ${{ inputs.command }}
+        run: |
+          if [ "$EVENT" = "workflow_dispatch" ]; then cmd="$INPUT"
+          elif [ "$SCHEDULE" = "30 13 * * *" ]; then cmd="send"
+          else cmd="collect"; fi
+          echo "Running: $cmd"
+          echo "command=$cmd" >> "$GITHUB_OUTPUT"
+
+      - name: Install Ollama
+        if: steps.cmd.outputs.command != 'collect'
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama and pull the model
+        if: steps.cmd.outputs.command != 'collect'
+        run: |
+          # The installer may already have started Ollama as a service.
+          if ! curl -sf http://localhost:11434/api/tags > /dev/null; then
+            ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          fi
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:11434/api/tags > /dev/null && break
+            sleep 2
+          done
+          if ! curl -sf http://localhost:11434/api/tags > /dev/null; then
+            echo "Ollama did not start"; cat "$RUNNER_TEMP/ollama.log" || true; exit 1
+          fi
+          MODEL=$(python -c "import yaml; print(yaml.safe_load(open('config.yaml'))['model'])")
+          ollama pull "$MODEL"
+
+      - name: Run FirstPick
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PYTHONUNBUFFERED: '1'
+        run: python main.py "${{ steps.cmd.outputs.command }}"
+
+      - name: Commit state and digests
+        run: |
+          git config user.name "firstpick-bot"
+          git config user.email "firstpick-bot@users.noreply.github.com"
+          git add state.json digests/
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+            exit 0
+          fi
+          git commit -m "FirstPick: ${{ steps.cmd.outputs.command }} $(date -u +%F)"
+          git push

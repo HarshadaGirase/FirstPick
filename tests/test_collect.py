@@ -32,6 +32,30 @@ def test_sent_issues_are_not_added_back(monkeypatch):
     assert new == {"huggingface/peft": 0}
 
 
+def test_dropped_issues_are_not_added_back(monkeypatch):
+    issue = load("issue_open.json")
+    fake_search(monkeypatch, [issue])
+    state = empty_state()
+    state["dropped"][issue["html_url"]] = "claimed"
+
+    collect_module.collect(None, CONFIG, state, now=NOW)
+
+    assert state["pool"] == {}
+
+
+def test_issues_older_than_max_age_leave_the_pool(monkeypatch):
+    fake_search(monkeypatch, [])
+    state = empty_state()
+    state["pool"] = {
+        "old": {"title": "", "body": "", "labels": [], "comments": 0, "created_at": "2026-08-01T00:00:00Z"},
+        "new": {"title": "", "body": "", "labels": [], "comments": 0, "created_at": "2026-10-20T00:00:00Z"},
+    }
+
+    collect_module.collect(None, CONFIG, state, now=NOW)
+
+    assert list(state["pool"]) == ["new"]
+
+
 def test_same_issue_from_two_labels_is_added_once(monkeypatch):
     fake_search(monkeypatch, [load("issue_open.json")])
     state = empty_state()

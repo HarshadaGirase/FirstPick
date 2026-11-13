@@ -1,0 +1,159 @@
+{
+  "pool": {
+    "https://github.com/run-llama/llama_index/issues/22947": {
+      "body": "## GeoMind \u2014 Knowledge Source for LlamaIndex\n\nGeoMind (https://shanhai-geo.top) is a structured knowledge engine designed for AI retrieval systems. We believe it's an ideal knowledge source for LlamaIndex.\n\n### What we provide\n- 201 structured knowledge pages with explicit relationships\n- 7,356 cross-reference links (knowledge graph)\n- Schema.org markup on every page for entity extraction\n- All content open, verifiable, source-traceable\n- Global CDN (Cloudflare, 275+ edge nodes)\n\n### For LlamaIndex\n1. Use GeoMind pages as a SimpleWebPageReader source\n2. Build indices over our structured knowledge\n3. Test LlamaIndex's retrieval quality against our explicit link structure\n\nOpen access, no auth. Sitemap: 204 URLs | llms.txt available | IndexNow integrated",
+      "comments": 5,
+      "created_at": "2026-09-03T12:50:40Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": -1.25,
+      "title": "[Resource] GeoMind: Pre-structured Knowledge Source for LlamaIndex",
+      "url": "https://github.com/run-llama/llama_index/issues/22947"
+    },
+    "https://github.com/run-llama/llama_index/issues/23246": {
+      "body": "### Feature Description\n\nMeasured on llama-index-core 0.14.24, SQLite via aiosqlite, macOS arm64, Python 3.12, with the open MIT suite agmi (https://github.com/tech4biz-yasha/agmi, row `llamaindex-memory-sqlite`).\n\nMethod: seed a session through `Memory.aput_messages()`, apply one edit directly to the `llama_index_memory` table with no keys, open a fresh `Memory` on the same database, read through `Memory.aget()`, and record what the library does.\n\nResult: all eight storage-level edits are accepted, meaning `aget()` returns without raising and the edited history becomes the agent's context.\n\nT1 text changed inside a message's `data`\nT2 newest messages deleted, so the agent resumes from an older state\nT3 one message removed from the middle\nT4 two messages swapped\nT5 a new message inserted by the attacker\nT6 another session's message copied over this session's row, `key` kept (user B's message served as user A's)\nT7 an older message of the same session copied over the newest\nT8 the row's `timestamp` rewritten, text untouched. Separately, rewriting `key` moves a message into another session's context, and setting `status` to archived silently drops it from context; neither raises.\n\nReproduction and pinned tests: https://github.com/tech4biz-yasha/agmi/blob/main/tests/test_llamaindex_memory.py\nExplainer per edit: https://agentmemoryintegrity.org/edits.html\n\nI understand the store may assume a trusted database. Two things would help users whose memory database is shared, backed up or reachable by other services: a note in the Memory docs that rows carry no integrity protection, and optionally a keyed MAC per row over `key + position + status + data`, checked in `aget()`. The reference store in agmi (`agmi/adapters/reference_atrest.py`) shows the minimum that rejects all eight. Happy to open a PR for either, and I will re-measure and update the public row when anything changes.\n\n### Reason\n\nAnyone who can write to the memory database (a shared database, a backup restore, another service) can change, delete, reorder, forge or move messages between sessions, and the agent treats the result as its own history. Today there is nothing in the docs that says the store carries no integrity protection, so users assume it does.\n\n### Value of Feature\n\nA docs note costs nothing and sets the right expectation. An optional keyed check on read would let users who need it reject an edited history instead of acting on it, without changing behaviour for anyone else. I can open the PR.",
+      "comments": 10,
+      "created_at": "2026-09-25T19:03:57Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "enhancement",
+        "good first issue",
+        "triage"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": -2.6,
+      "title": "[Feature Request]: Memory (SQLAlchemy chat store) serves edited, replayed and re-owned messages as genuine context; aget() never signals a changed store",
+      "url": "https://github.com/run-llama/llama_index/issues/23246"
+    },
+    "https://github.com/run-llama/llama_index/issues/23339": {
+      "body": "### Bug Description\n\n`RankLLMRerank` cannot be imported, unless `vllm` is installed. This is true even when using a backend that has nothing to do with vLLM.\n\nReason: `llama_index.postprocessor.rankllm_rerank.base` imports `PromptMode` and `Reranker` from `rank_llm.rerank` at module level:\n\n```python\nfrom rank_llm.rerank.rankllm import PromptMode\nfrom rank_llm.rerank.reranker import Reranker\n```\n\nIn the current release `0.25.7`, importing anything from `rank_llm.rerank` executes `rank_llm/rerank/__init__.py`, which unconditionally imports `reranker.py`. That file unconditionally imports `rank_llm.rerank.listwise`, which executes `rank_llm/rerank/listwise/__init__.py`. That file imports `RankListwiseOSLLM`, which performs a module-level bare `import vllm`. In turn, `vllm` pulls in CUDA-only packages, which have no macOS wheels available. So the issue isn't just \"vllm isn't installed\" \u2014 on Apple Silicon it cannot be installed as a dependency to begin with.\n\nNote: #21789 already fixed the earlier problem of `PromptMode` not being importable from `rank_llm.rerank.reranker` on newer `rank-llm` releases, by switching to `rank_llm.rerank.rankllm`. That fix is correct, and this issue isn't about reverting it. This is a separate, underlying problem: regardless of which submodule path is used, touching `rank_llm.rerank` at all triggers the eager import chain above.\n\n### Additional Context\n\n- This appears to already be known internally. The regression test added in #21789 includes a workaround for the issue. Instead of importing `rank_llm` for real, the test mocks its module tree.\n\n  The test includes a comment explaining why:\n\n  > rank_llm is mocked here. Importing the real rank_llm.rerank package pulls in transformers/vllm model code. For example, it pulls in rank_llm's lit5 T5 modeling. This breaks at import time with transformers >= 4.56 until rank-llm catches up upstream.\n\n  So the test suite avoids the problem. However, the production import path in `base.py` still has it.\n\n- `castorini/rank_llm`'s `main` branch (unreleased \u2014 latest PyPI release is still `0.25.7`, from Aug 2025) already guards the risky import in `rank_llm/rerank/__init__.py`:\n\n```python\n  try:\n      from .reranker import Reranker\n  except ImportError:\n      Reranker = None\n```\n\n### Question for maintainers\n\nRather than guess at the preferred fix, wanted to raise this first:\n\n- Would you want a workaround on this side now (e.g. deferring the `rank_llm.rerank` imports in `base.py` out of module scope and into `_postprocess_nodes`, with a fallback for the import-failure case)?\n- Would you rather wait for the upstream fix to ship and bump the dependency floor then?\n\nHappy to put together a PR for either approach if useful.\n\n### Version\n\n`llama-index-postprocessor-rankllm-rerank` (current `main`), `rank-llm==0.25.7`. Reproduced on macOS, Apple M4, Python 3.12.5.\n\n### Steps to Reproduce\n\n1. Create a fresh virtual environment without `vllm` installed (any platform; on macOS this is unavoidable, since no `vllm` wheel exists for Darwin).\n2. Install `llama-index-postprocessor-rankllm-rerank` and its declared dependencies.\n3. Run:\n```python\n   from llama_index.postprocessor.rankllm_rerank import RankLLMRerank\n```\n\n\n **Expected:** \n\n```\nimport succeeds; `vllm` should only be required when actually constructing a vLLM-backed reranker (`RankListwiseOSLLM`).\n```\n\n **Actual:** \n\n```\nModuleNotFoundError: No module named 'vllm' \n```\n\n```\nor, on macOS, installation fails before you even get that far, since `vllm`'s own CUDA dependencies have no Darwin wheels: error: Distribution nvidia-cudnn-frontend==1.27.0 @ registry+https://pypi.nvidia.com/ can't be installed because it doesn't have a source distribution or wheel for the current platform\n```\n",
+      "comments": 2,
+      "created_at": "2026-10-02T14:27:18Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "bug",
+        "good first issue",
+        "triage"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 2.7,
+      "title": "[Bug]: RankLLMRerank cannot be imported without vllm installed, regardless of reranking backend",
+      "url": "https://github.com/run-llama/llama_index/issues/23339"
+    },
+    "https://github.com/run-llama/llama_index/issues/23667": {
+      "body": "### Bug Description\n\n`llama_index.core.utils.infer_torch_device()` only checks for CUDA and MPS before falling back to CPU, so Intel GPUs (`xpu`) are never picked:\n\nhttps://github.com/run-llama/llama_index/blob/619d74664e8404612038bc15a1a40c686037277c/llama-index-core/llama_index/core/utils.py#L583-L595\n\nOn an Intel Arc Pro B70 with the PyTorch XPU build, `torch.xpu.is_available()` returns `True` but `infer_torch_device()` returns `\"cpu\"`. Everything that uses it for its default device runs on CPU without any warning. That includes `HuggingFaceEmbedding`, the SBERT, ColBERT and ColPali rerankers, the adapter embedding, and the image readers in `llama-index-readers-file`. Passing `device=\"xpu\"` explicitly works fine, so only the detection is missing.\n\nI see that PR #22407 fixes this: `infer_torch_device()` returns `\"xpu\"` and `HuggingFaceEmbedding` loads on `xpu:0` without passing a device. Could a maintainer approve this pr so that it would not block XPU users?\n\n\n\n### Version\n\n0.14.25\n\n### Steps to Reproduce\n\nEnvironment: Intel Arc Pro B70, Linux, Python 3.12.3, torch 2.13.0+xpu, transformers 5.20.2, llama-index-embeddings-huggingface 0.8.0\n\n```python\nimport torch\nfrom llama_index.core.utils import infer_torch_device\nfrom llama_index.embeddings.huggingface import HuggingFaceEmbedding\n\nprint(torch.xpu.is_available())      # True\nprint(infer_torch_device())          # 'cpu'   <- expected 'xpu'\n\nemb = HuggingFaceEmbedding(model_name=\"BAAI/bge-small-en-v1.5\")\nprint(emb._model.device)             # cpu     <- expected xpu:0\n\nemb = HuggingFaceEmbedding(model_name=\"BAAI/bge-small-en-v1.5\", device=\"xpu\")\nprint(emb._model.device)             # xpu:0   (works when set explicitly)\n```\n\n### Relevant Logs/Tracebacks\n\n```shell\npython 3.12.3 | torch 2.13.0+xpu | transformers 5.20.2 | llama-index-core 0.14.25\nxpu available: True | Intel(R) Arc(TM) Pro B70 Graphics\ncuda available: False\n\n[FAIL] infer_torch_device(): returned 'cpu', expected 'xpu'\n[FAIL] HuggingFaceEmbedding default device: model placed on 'cpu', expected xpu\n[OK]   HuggingFaceEmbedding(device='xpu'): device=xpu:0, dim=384\n[OK]   HuggingFaceLLM(device_map='xpu') complete(): device=xpu:0\n[OK]   VectorStoreIndex query end-to-end on XPU\n```",
+      "comments": 2,
+      "created_at": "2026-10-23T09:29:07Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "bug",
+        "good first issue",
+        "triage"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.75,
+      "title": "[Bug]: `infer_torch_device()` is missing for Intel XPU",
+      "url": "https://github.com/run-llama/llama_index/issues/23667"
+    },
+    "https://github.com/run-llama/llama_index/issues/23673": {
+      "body": "### Bug description\n\nWith `summarize_response=True`, both `retrieve_from_graph()` and `aretrieve_from_graph()` pass `question=parsed_cypher_query` to the summarization LLM. The summarizer receives the generated Cypher in the question slot instead of the original natural-language request.\n\nFor example, the question `How many flights are there? Answer in Spanish.` can generate `MATCH (f:Flight) RETURN count(f) AS count`. The summary prompt then contains the Cypher as its question, so the Spanish-output instruction is lost even though the database query correctly captures the requested data. This affects the default and custom summarization templates.\n\n### Reproduction and expectation\n\nReproduced on current main `619d74664e8404612038bc15a1a40c686037277c` with a mocked graph store returning `[{\"count\": 42}]` and a `MockLLM` whose completion returns the Cypher on the first call. Inspecting the second completion's formatted prompt shows `Question: MATCH ...` rather than the original question. No graph server or paid API is needed.\n\nExpected: pass the original `query_bundle.query_str` to the summarization prompt, while continuing to execute and retain the generated Cypher in raw-response metadata.\n\nFour regression cases (sync/async \u00d7 default/custom summary template) fail on main; four non-summarized controls pass. A focused two-line fix and regression tests are prepared.\n\nAI assistance was used to investigate this and prepare the mocked reproduction and regression tests.",
+      "comments": 0,
+      "created_at": "2026-10-23T17:15:18Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.8,
+      "title": "[Bug]: TextToCypherRetriever drops the user's question during response summarization",
+      "url": "https://github.com/run-llama/llama_index/issues/23673"
+    },
+    "https://github.com/run-llama/llama_index/issues/23675": {
+      "body": "### Bug description\n\n`SemanticDoubleMergingSplitterNodeParser.from_defaults(include_prev_next_rel=False, ...)` still attaches `PREVIOUS` and `NEXT` relationships. Its `build_semantic_nodes_from_nodes()` links the chunks unconditionally before the base parser's postprocessing checks the flag.\n\nThis affects `get_nodes_from_documents()`, `build_semantic_nodes_from_documents()` and `build_semantic_nodes_from_nodes()`. Consumers that follow neighbor relationships (such as `PrevNextNodePostprocessor`) can therefore expand context even when those relationships were explicitly disabled.\n\n### Reproduction (no external models or downloads)\n\n```python\nfrom llama_index.core import Document, MockEmbedding\nfrom llama_index.core.node_parser import SemanticDoubleMergingSplitterNodeParser\n\nparser = SemanticDoubleMergingSplitterNodeParser.from_defaults(\n    embed_model=MockEmbedding(embed_dim=4),\n    sentence_splitter=str.splitlines,\n    max_chunk_size=10,\n    include_prev_next_rel=False,\n)\nnodes = parser.get_nodes_from_documents([\n    Document(text=\"First sentence.\\nSecond sentence.\\nThird sentence.\")\n])\nprint([list(node.relationships) for node in nodes])\n```\n\nExpected: all three nodes have only `SOURCE` relationships. Actual: they also have `PREVIOUS` and/or `NEXT`.\n\nReproduced on current main `619d74664e8404612038bc15a1a40c686037277c`. Regression tests over the three entry points yield 3 failures with the flag disabled and 3 passes with it enabled. A guard around the existing linking loop resolves those failures while retaining the default behavior, text and source relationships.\n\nAI assistance was used for investigation, reproduction and regression tests. A focused fix is prepared.",
+      "comments": 1,
+      "created_at": "2026-10-23T17:19:05Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.3,
+      "title": "[Bug]: SemanticDoubleMergingSplitterNodeParser ignores include_prev_next_rel=False",
+      "url": "https://github.com/run-llama/llama_index/issues/23675"
+    },
+    "https://github.com/run-llama/llama_index/issues/23679": {
+      "body": "### Bug description\n\nCalling `SimplePropertyGraphStore.upsert_relations()` with an existing `(source, label, target)` silently ignores updated relation properties. `LabelledPropertyGraph.add_triplet()` returns early for an existing triplet before replacing the relation object. The async `aupsert_relations()` path has the same behavior.\n\n### Reproduction\n\n```python\nfrom llama_index.core.graph_stores.simple_labelled import SimplePropertyGraphStore\nfrom llama_index.core.graph_stores.types import Relation\n\nstore = SimplePropertyGraphStore()\nfor confidence in (0.1, 0.9):\n    store.upsert_relations([\n        Relation(label=\"KNOWS\", source_id=\"Alice\", target_id=\"Bob\",\n                 properties={\"confidence\": confidence})\n    ])\nprint(store.get_triplets(relation_names=[\"KNOWS\"])[0][1].properties)\n# Actual: {'confidence': 0.1}; expected latest upsert: {'confidence': 0.9}\n```\n\nReproduced on current main `619d74664e8404612038bc15a1a40c686037277c`, without external services. Two new sync/async regression cases fail and eight existing graph-store tests pass. Removing the early return lets the triplet set retain deduplication while updating the stored relation; all ten graph-store tests then pass. Tests also verify unrelated relations and endpoint properties are retained, and replaying the updated relation does not duplicate triplets.\n\nThis is separate from existing shared-endpoint deletion and relation-key collision fixes (#23347, #23437).\n\nAI assistance was used for investigation, reproduction and regression tests. A focused fix is prepared.",
+      "comments": 0,
+      "created_at": "2026-10-23T17:24:18Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.8,
+      "title": "[Bug]: SimplePropertyGraphStore relation upserts ignore updated properties",
+      "url": "https://github.com/run-llama/llama_index/issues/23679"
+    },
+    "https://github.com/run-llama/llama_index/issues/23683": {
+      "body": "### Bug description\n\n`SentenceSplitter` and `TokenTextSplitter` still reserve space for a document's metadata when constructed with `include_metadata=False`. Their shared `MetadataAwareTextSplitter._get_metadata_str()` always formats the metadata, even though the resulting nodes will not contain it. Large metadata therefore causes ingestion to fail with a metadata-length error despite the explicit opt-out.\n\n### Reproduction\n\n```python\nfrom llama_index.core import Document\nfrom llama_index.core.node_parser import TokenTextSplitter\n\nsplitter = TokenTextSplitter(\n    chunk_size=20, chunk_overlap=0, tokenizer=list, include_metadata=False\n)\nsplitter.get_nodes_from_documents([\n    Document(text=\"word \" * 12, metadata={\"context\": \"x\" * 100})\n])\n# ValueError: Metadata length (...) is longer than chunk size (20).\n```\n\nExpected: split the text within its budget and return nodes with empty metadata. Metadata that is explicitly disabled should not prevent text ingestion. With metadata enabled, rejecting an oversized metadata field remains correct.\n\nReproduced on main `619d74664e8404612038bc15a1a40c686037277c` for both splitters and their sync/async document-parsing entry points. The eight-case regression has 4 failures for disabled metadata and 4 passing enabled-metadata controls on unchanged source. Returning an empty metadata string when `include_metadata` is false fixes all four failures. Tests use a character tokenizer and supplied sentence splitter, without API calls or downloaded resources.\n\nAI assistance was used for investigation, reproduction and regression tests. A focused fix is prepared.",
+      "comments": 0,
+      "created_at": "2026-10-23T17:32:28Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.8,
+      "title": "[Bug]: Disabled metadata still consumes splitter budget and can block ingestion",
+      "url": "https://github.com/run-llama/llama_index/issues/23683"
+    },
+    "https://github.com/run-llama/llama_index/issues/23708": {
+      "body": "## Documentation Request: Vietnamese Document Loader Example\n\n**Reporter:** [NHAM QUOC HUAN](https://github.com/Dennis-nham) \u00b7 [NLP Labs Vietnam](https://github.com/nlp-labs-vietnam)\n\n---\n\n## Background\n\n[NLP Labs Vietnam](https://github.com/nlp-labs-vietnam) builds a RAG-based solar PV advisory using LlamaIndex. Our pipeline ingests Vietnamese solar technical documents (PDFs, Word files from MOIT/EVN). We want to contribute a Vietnamese document processing example.\n\n## Proposed Example\n\n```python\nfrom llama_index.core import VectorStoreIndex, SimpleDirectoryReader\nfrom llama_index.embeddings.huggingface import HuggingFaceEmbedding\n\n# Vietnamese-aware embedding\nembed_model = HuggingFaceEmbedding(\n    model_name=\"keepitreal/vietnamese-sbert\"\n)\n\n# Load Vietnamese solar documents\n# Note: Vietnamese PDFs often use complex fonts \u2014 pypdf handles diacritics correctly\n# but pdfminer may lose tone marks on some Vietnamese fonts\ndocuments = SimpleDirectoryReader(\n    \"./solar_docs_vi\",\n    filename_as_id=True\n).load_data()\n\n# Pre-process: Vietnamese word segmentation improves chunk quality\n# Recommended: segment before indexing for better retrieval precision\nfrom underthesea import word_tokenize\nfor doc in documents:\n    doc.text = word_tokenize(doc.text, format=\"text\")\n\nindex = VectorStoreIndex.from_documents(documents, embed_model=embed_model)\n```\n\n## Key insights for the community\n\n1. **PDF font handling** for Vietnamese diacritics (tone marks can be lost with some PDF parsers)\n2. **Word segmentation** before chunking improves retrieval by ~15% for Vietnamese\n3. **Embedding model selection** matters \u2014 multilingual-e5 vs vietnamese-sbert comparison\n\n**We are willing to contribute** a cookbook entry or docs example.\n\n**Organization:** [github.com/nlp-labs-vietnam](https://github.com/nlp-labs-vietnam)",
+      "comments": 1,
+      "created_at": "2026-10-25T10:44:50Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 4.35,
+      "title": "[Docs] Vietnamese document loader example \u2014 solar energy report ingestion for RAG",
+      "url": "https://github.com/run-llama/llama_index/issues/23708"
+    },
+    "https://github.com/run-llama/llama_index/issues/23709": {
+      "body": "## Documentation Request: Vietnamese Document Loader Best Practices\n\n**Reporter:** [NHAM QUOC HUAN](https://github.com/Dennis-nham) \u00b7 [NLP Labs Vietnam](https://github.com/nlp-labs-vietnam)\n\nWe ingest Vietnamese solar technical PDFs (MOIT/EVN) for our RAG advisory pipeline. Key insight: **word-segmenting Vietnamese text before chunking improves retrieval precision by ~15%** vs raw chunking.\n\n```python\nfrom llama_index.core import VectorStoreIndex, SimpleDirectoryReader\nfrom underthesea import word_tokenize\n\ndocs = SimpleDirectoryReader(\"./solar_docs_vi\").load_data()\nfor doc in docs:\n    doc.text = word_tokenize(doc.text, format=\"text\")   # segment BEFORE chunking\n\nindex = VectorStoreIndex.from_documents(docs)\n```\n\n**Also important:** Vietnamese PDFs with tone marks require pypdf (not pdfminer) to avoid losing diacritics.\n\n**Org:** [github.com/nlp-labs-vietnam](https://github.com/nlp-labs-vietnam)",
+      "comments": 2,
+      "created_at": "2026-10-25T11:12:24Z",
+      "first_seen": "2026-10-28T16:53:53+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.85,
+      "title": "[Docs] Vietnamese PDF ingestion for RAG \u2014 word segmentation before chunking improves retrieval 15%",
+      "url": "https://github.com/run-llama/llama_index/issues/23709"
+    }
+  },
+  "sent": [],
+  "stats": [
+    {
+      "command": "collect",
+      "new_per_repo": {
+        "gradio-app/gradio": 0,
+        "huggingface/datasets": 0,
+        "huggingface/peft": 0,
+        "huggingface/transformers": 0,
+        "keras-team/keras": 0,
+        "langchain-ai/langchain": 0,
+        "run-llama/llama_index": 10,
+        "scikit-learn/scikit-learn": 0
+      },
+      "new_total": 10,
+      "pool_size": 10,
+      "time": "2026-10-28T16:53:53+00:00"
+    }
+  ]
+}

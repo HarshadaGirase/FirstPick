@@ -33,6 +33,26 @@ SCHEMA = {
 
 # Things in the model's answer that must also appear in the issue text.
 URL_RE = re.compile(r"https?://[^\s)\]>\"'`]+")
+WWW_RE = re.compile(r"\bwww\.[^\s)\]>\"'`]+")
+STEP_NUMBER_RE = re.compile(r"^\s*(?:\d+[.)]|[-*•])\s+")  # "1. ", "2) ", "- "
+
+# Issue text that tries to instruct the model never reaches it. Gemma's own resistance
+# varied run to run in the evals, so this check does not rely on the model.
+INJECTION_RE = re.compile(
+    r"ignore\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|earlier)\s+instructions"
+    r"|disregard\s+(?:all\s+)?(?:the\s+)?(?:previous|prior|above|earlier)"
+    r"|^\s*(?:assistant|system)\s*:"
+    r"|system\s+(?:note|override)"  # not "system prompt": normal words in LLM repos
+    r"|you\s+must\s+(?:tell|say|reply|respond|output|write|instruct)"
+    r"|in\s+your\s+(?:answer|reply|response|summary)\s*,",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def injection_attempt(text):
+    """The first prompt-injection phrase found in text, or None."""
+    match = INJECTION_RE.search(text)
+    return match.group(0).strip() if match else None
 PATH_RE = re.compile(r"[\w.-]*/[\w./-]+")
 DOTTED_RE = re.compile(r"\b[A-Za-z_]\w+(?:\.[A-Za-z_]\w+)+\b")  # config.py, torch.nn.Linear
 SNAKE_RE = re.compile(r"\b[A-Za-z]\w*_\w+\b")                     # get_peft_model
@@ -118,6 +138,11 @@ def validate(result, source_text):
         return errors
 
     answer_text = "\n".join([result["summary"], result["difficulty_reason"], result["you_will_learn"], *steps])
+    # No links at all, even ones in the issue: an injected "download the fix from <url>"
+    # is in the issue text too. The digest card already links to the issue itself.
+    for url in sorted(set(URL_RE.findall(answer_text) + WWW_RE.findall(answer_text))):
+        errors.append(f"contains the link {url!r}; do not include any links")
+
     source_lower = source_text.lower()
     for ident in sorted(mentioned_identifiers(answer_text)):
         if ident.lower() not in source_lower:
@@ -149,19 +174,27 @@ def fallback(issue):
     }
 
 
-def explain(issue, model, level):
-    """Explain one issue. Tries twice, then falls back.
+def explain(issue, model, level, screen=True):
+    """Explain one issue. Tries twice, then falls back. Injection attempts fall back without a model call.
 
     Returns a dict: explanation, fallback (bool), first_try_valid (bool),
-    attempts, seconds (total model time), errors (from the last attempt).
+    attempts, seconds (total model time), errors (from the last attempt),
+    first_errors (from the first attempt; used by the evals).
     """
+    source_text = "\n".join([issue["repo"], issue["title"], clean_text(issue["body"])])
+    # screen=False is only for the evals, to measure the model + validation on their own.
+    attempt_text = screen and injection_attempt(issue["title"] + "\n" + clean_text(issue["body"]))
+    if attempt_text:
+        errors = [f"issue text looks like a prompt injection ({attempt_text!r}); model not called"]
+        return {"explanation": fallback(issue), "fallback": True, "first_try_valid": False,
+                "attempts": 0, "seconds": 0.0, "errors": errors, "first_errors": errors}
+
     system, template = load_prompt()
     user = build_user_message(template, issue, level)
-    source_text = "\n".join([issue["repo"], issue["title"], clean_text(issue["body"])])
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
 
     seconds = 0.0
-    errors = []
+    errors = first_errors = []
     for attempt in (1, 2):
         start = time.monotonic()
         reply = call_ollama(model, messages)
@@ -172,9 +205,14 @@ def explain(issue, model, level):
             result, errors = None, [f"reply is not valid JSON: {e}"]
         else:
             errors = validate(result, source_text)
+        if attempt == 1:
+            first_errors = errors
         if not errors:
+            # The digest numbers the steps itself; drop the model's own "1. " prefixes.
+            result["first_steps"] = [STEP_NUMBER_RE.sub("", step) for step in result["first_steps"]]
             return {"explanation": result, "fallback": False, "first_try_valid": attempt == 1,
-                    "attempts": attempt, "seconds": round(seconds, 2), "errors": []}
+                    "attempts": attempt, "seconds": round(seconds, 2), "errors": [],
+                    "first_errors": first_errors}
         # Retry once, telling the model what was wrong.
         messages = messages + [
             {"role": "assistant", "content": reply},
@@ -183,4 +221,5 @@ def explain(issue, model, level):
         ]
 
     return {"explanation": fallback(issue), "fallback": True, "first_try_valid": False,
-            "attempts": 2, "seconds": round(seconds, 2), "errors": errors}
+            "attempts": 2, "seconds": round(seconds, 2), "errors": errors,
+            "first_errors": first_errors}

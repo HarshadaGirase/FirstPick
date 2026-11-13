@@ -1,11 +1,14 @@
 """FirstPick command-line entry point.
 
 Usage:
-    python main.py collect
-    python main.py dry-run
+    python main.py collect      # find new issues, add them to state.json
+    python main.py send         # send the digest, if the schedule says it is due
+    python main.py force-send   # send the digest now, ignoring the schedule
+    python main.py dry-run      # build the digest into preview.md only; no delivery, no state changes
 """
 
 import argparse
+import os
 from collections import Counter
 from datetime import datetime, timezone
 
@@ -13,11 +16,12 @@ import yaml
 
 from src import github_api
 from src.collect import collect
+from src.deliver import is_due, notify, write_digest
 from src.explain import explain
 from src.rank import top_candidates
 from src.recheck import recheck_candidates
 from src.render import render_digest
-from src.state import load_state, save_state
+from src.state import load_state, mark_sent, save_state
 
 PREVIEW_PATH = "preview.md"
 
@@ -46,15 +50,15 @@ def build_digest(session, config, state, now):
     Returns (markdown, picks, dropped, stats). Does not change state.
     """
     candidates = top_candidates(state["pool"], config["recheck_pool"])
-    print(f"Rechecking {len(candidates)} candidates ...")
+    print(f"Rechecking {len(candidates)} candidates ...", flush=True)
     survivors, dropped = recheck_candidates(session, candidates)
 
     picks = []
     for issue in survivors[:config["top_n"]]:
-        print(f"Explaining {issue['url']} ...")
+        print(f"Explaining {issue['url']} ...", flush=True)
         result = explain(issue, config["model"], config["profile"]["level"])
         note = "FALLBACK: " + "; ".join(result["errors"]) if result["fallback"] else "ok"
-        print(f"  {result['seconds']}s, {result['attempts']} attempt(s), {note}")
+        print(f"  {result['seconds']}s, {result['attempts']} attempt(s), {note}", flush=True)
         picks.append((issue, result))
 
     total_seconds = sum(result["seconds"] for _, result in picks)
@@ -71,6 +75,35 @@ def build_digest(session, config, state, now):
     return markdown, picks, dropped, stats
 
 
+def run_send(config, force=False):
+    now = datetime.now(timezone.utc)
+    if not force and not is_due(config["schedule"], now):
+        print(f"Not due: schedule is weekly on {config['schedule']['send_day']} (UTC), today is {now:%A}.")
+        return
+
+    my_repo = os.environ.get("GITHUB_REPOSITORY")
+    if not my_repo:
+        raise SystemExit("GITHUB_REPOSITORY is not set (owner/repo of YOUR FirstPick repo).")
+    branch = os.environ.get("GITHUB_REF_NAME", "main")
+
+    session = github_api.make_session()
+    state = load_state()
+    markdown, picks, dropped, stats = build_digest(session, config, state, now)
+    date = now.date().isoformat()
+    digest_path = write_digest(date, markdown)
+    print(f"Wrote {digest_path}")
+
+    if picks:
+        url = notify(session, my_repo, branch, digest_path, len(picks), date)
+        print(f"Notification issue: {url}")
+    else:
+        print("No issues survived the recheck; no notification posted.")
+
+    mark_sent(state, [issue["url"] for issue, _ in picks], dropped)
+    state["stats"].append(stats)
+    save_state(state)
+
+
 def run_dry_run(config):
     session = github_api.make_session()
     state = load_state()
@@ -83,13 +116,17 @@ def run_dry_run(config):
 
 def main():
     parser = argparse.ArgumentParser(description="FirstPick: beginner-friendly AI repo issues")
-    parser.add_argument("command", choices=["collect", "dry-run"])
+    parser.add_argument("command", choices=["collect", "send", "force-send", "dry-run"])
     args = parser.parse_args()
 
     github_api.load_dotenv()
     config = load_config()
     if args.command == "collect":
         run_collect(config)
+    elif args.command == "send":
+        run_send(config)
+    elif args.command == "force-send":
+        run_send(config, force=True)
     elif args.command == "dry-run":
         run_dry_run(config)
 

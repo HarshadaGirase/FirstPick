@@ -64,8 +64,12 @@ def collect(session, config, state, now=None):
     """Search every repo/label, add new issues to the pool, rescore. Returns new-issue counts per repo."""
     now = now or datetime.now(timezone.utc)
     since = (now - timedelta(days=config["max_age_days"])).date().isoformat()
-    sent = set(state["sent"])
+    skip = set(state["sent"]) | set(state["dropped"])
     pool = state["pool"]
+
+    # Issues older than max_age_days leave the pool, matching the search window.
+    for url in [u for u, issue in pool.items() if issue["created_at"][:10] < since]:
+        del pool[url]
 
     repos = verify_repos(session, config["repos"])
     new_per_repo = {}
@@ -74,11 +78,12 @@ def collect(session, config, state, now=None):
         for label in config["labels"]:
             for item in github_api.search_issues(session, build_query(repo, label, since)):
                 url = item["html_url"]
-                if url in sent or url in pool:
+                if url in skip or url in pool:
                     continue
                 pool[url] = to_pool_entry(item, repo, now)
                 new_count += 1
         new_per_repo[repo] = new_count
+        print(f"  {repo}: {new_count} new", flush=True)
 
     for issue in pool.values():
         issue["score"] = score_issue(issue, config["profile"], config["max_age_days"], now)

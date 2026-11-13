@@ -66,3 +66,4 @@ What it does, why open (local Gemma, no API key, free on Actions), setup, comman
 4. deliver + workflow + README.
 5. evals → print table.
 No extra features. Fix root causes; don't silence errors.
+
