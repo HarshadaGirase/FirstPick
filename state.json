@@ -13,7 +13,21 @@
     "https://github.com/run-llama/llama_index/issues/24082": "linked_pr",
     "https://github.com/run-llama/llama_index/issues/24223": "linked_pr"
   },
-  "pool": {},
+  "pool": {
+    "https://github.com/run-llama/llama_index/issues/24363": {
+      "body": "Screwtape.ai `agent_fleet_compliance` — prepaid trust-score + spend-books for multi-agent orgs.\n\nBuy (live): `POST https://screwtape.ai/v1/packages/agent_fleet_compliance/buy` → x402 **$19 USDC on Base**.\nCatalog: https://screwtape.ai/pricing.json (`agent_packages`). Docs: https://screwtape.ai/llms.txt\nOrg/PayPal: support@screwtape.ai (PayPal configured; org tiers $19–$99).\n\nHappy to contribute an example/docs note if welcome.",
+      "comments": 1,
+      "created_at": "2026-11-21T04:02:56Z",
+      "first_seen": "2026-11-23T06:52:21+00:00",
+      "labels": [
+        "good first issue"
+      ],
+      "repo": "run-llama/llama_index",
+      "score": 3.4,
+      "title": "Docs idea: Screwtape agent_fleet_compliance for agent spend audit",
+      "url": "https://github.com/run-llama/llama_index/issues/24363"
+    }
+  },
   "sent": [],
   "stats": [
     {
@@ -179,6 +193,22 @@
       "new_total": 0,
       "pool_size": 0,
       "time": "2026-11-22T23:27:26+00:00"
+    },
+    {
+      "command": "collect",
+      "new_per_repo": {
+        "gradio-app/gradio": 0,
+        "huggingface/datasets": 0,
+        "huggingface/peft": 0,
+        "huggingface/transformers": 0,
+        "keras-team/keras": 0,
+        "langchain-ai/langchain": 0,
+        "run-llama/llama_index": 1,
+        "scikit-learn/scikit-learn": 0
+      },
+      "new_total": 1,
+      "pool_size": 1,
+      "time": "2026-11-23T06:52:21+00:00"
     }
   ]
 }
