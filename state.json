@@ -11,23 +11,10 @@
     "https://github.com/run-llama/llama_index/issues/23709": "linked_pr",
     "https://github.com/run-llama/llama_index/issues/24043": "linked_pr",
     "https://github.com/run-llama/llama_index/issues/24082": "linked_pr",
-    "https://github.com/run-llama/llama_index/issues/24223": "linked_pr"
+    "https://github.com/run-llama/llama_index/issues/24223": "linked_pr",
+    "https://github.com/run-llama/llama_index/issues/24363": "claimed"
   },
-  "pool": {
-    "https://github.com/run-llama/llama_index/issues/24363": {
-      "body": "Screwtape.ai `agent_fleet_compliance` — prepaid trust-score + spend-books for multi-agent orgs.\n\nBuy (live): `POST https://screwtape.ai/v1/packages/agent_fleet_compliance/buy` → x402 **$19 USDC on Base**.\nCatalog: https://screwtape.ai/pricing.json (`agent_packages`). Docs: https://screwtape.ai/llms.txt\nOrg/PayPal: support@screwtape.ai (PayPal configured; org tiers $19–$99).\n\nHappy to contribute an example/docs note if welcome.",
-      "comments": 1,
-      "created_at": "2026-11-21T04:02:56Z",
-      "first_seen": "2026-11-23T06:52:21+00:00",
-      "labels": [
-        "good first issue"
-      ],
-      "repo": "run-llama/llama_index",
-      "score": 3.4,
-      "title": "Docs idea: Screwtape agent_fleet_compliance for agent spend audit",
-      "url": "https://github.com/run-llama/llama_index/issues/24363"
-    }
-  },
+  "pool": {},
   "sent": [],
   "stats": [
     {
@@ -225,6 +212,18 @@
       "new_total": 0,
       "pool_size": 1,
       "time": "2026-11-23T23:39:29+00:00"
+    },
+    {
+      "collected": 1,
+      "command": "send",
+      "dropped_assigned": 0,
+      "dropped_claimed": 1,
+      "dropped_closed": 0,
+      "dropped_linked_pr": 0,
+      "model": "gemma3:4b",
+      "seconds_per_issue": 0,
+      "sent": 0,
+      "time": "2026-11-24T01:09:35+00:00"
     }
   ]
 }
