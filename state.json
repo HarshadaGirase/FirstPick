@@ -344,6 +344,18 @@
       "new_total": 0,
       "pool_size": 0,
       "time": "2026-11-26T21:14:07+00:00"
+    },
+    {
+      "collected": 0,
+      "command": "send",
+      "dropped_assigned": 0,
+      "dropped_claimed": 0,
+      "dropped_closed": 0,
+      "dropped_linked_pr": 0,
+      "model": "gemma3:4b",
+      "seconds_per_issue": 0,
+      "sent": 0,
+      "time": "2026-11-26T22:31:29+00:00"
     }
   ]
 }
