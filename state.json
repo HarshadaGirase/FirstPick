@@ -14,7 +14,24 @@
     "https://github.com/run-llama/llama_index/issues/24223": "linked_pr",
     "https://github.com/run-llama/llama_index/issues/24363": "claimed"
   },
-  "pool": {},
+  "pool": {
+    "https://github.com/scikit-learn/scikit-learn/issues/35497": {
+      "body": "> [!WARNING]\n> This issue is not yet ready for a PR. If you are interested in contributing to scikit-learn, please have a look at our [contributing guidelines](https://scikit-learn.org/dev/developers/contributing.html), and in particular the sections for [new contributors](https://scikit-learn.org/dev/developers/contributing.html#new-contributors) and the [\"Needs triage\"](https://scikit-learn.org/dev/developers/contributing.html#issues-tagged-needs-triage) label.\n\n# This issue is reserved for people attending the Compute! sprint in person on November 27, 2026\n\nBelow is a list of broken links in the documentation and their locations.\nInstructions are at the top of each section and, for some items, next to the link.\nLinks in section 5 may only be temporarily down: please check them in a browser first.\n\nIf you want to work on this, please:\n\n- Open one pull request per link, or per group of closely related links (e.g. links to the same site).\n- Comment on this issue saying which link(s) you want to tackle, so that several people can work in parallel.\n- Reference this issue in your pull request description with `Towards #35497`\n  (not \"Fixes\" or \"Closes\", which would close this issue when your PR is merged).\n\n## 1. Broken redirects in `doc/conf.py`\n\nThe `redirects` dict in `doc/conf.py` generates small pages that forward old URLs to new ones.\n\n- [ ] `doc/conf.py:516-518`: the entry for `auto_examples/cluster/plot_agglomerative_clustering`\n  includes the `.html` suffix in both the key and the value, which produces\n  `plot_agglomerative_clustering.html.html` redirecting to `plot_ward_structured_vs_unstructured.html.html`.\n  The old URL `plot_agglomerative_clustering.html` is therefore not redirected.\n  Fix: remove `.html` from both strings, like the other entries.\n- [ ] `doc/conf.py:462-464`: `auto_examples/datasets/plot_digits_last_image` redirects to\n  `auto_examples/exercises/plot_digits_classification_exercises`, which no longer exists\n  (`examples/exercises/` was removed).\n  Fix: propose an existing example as the new target in the PR, or remove the entry.\n\n## 2. External pages that no longer exist (404 / 410)\n\nTo fix: search for the page's new location (same title on the same site, or the\nproject's current docs) and update the URL in the source. If it has moved nowhere,\nuse an archived copy from https://web.archive.org/ or remove the link and keep the text.\n\n- [ ] https://py-free-threading.github.io/installing_cpython/ — `examples/release_highlights/plot_release_highlights_1_6_0.py:182`, `doc/whats_new/v1.6.rst:296`, `doc/whats_new/v1.8.rst:144`\n- [ ] https://www.cms.waikato.ac.nz/~ml/publications/2004/bouckaert-frank.pdf (410) — `examples/model_selection/plot_grid_search_stats.py:558`\n- [ ] https://cran.r-project.org/web/packages/gbm/vignettes/gbm.pdf — `doc/modules/ensemble.rst:939`\n- [ ] https://joblib.readthedocs.io/en/latest/memory.html — `doc/modules/compose.rst:216`\n- [ ] https://joblib.readthedocs.io/en/latest/parallel.html#thread-based-parallelism-vs-process-based-parallelism — `doc/computing/parallelism.rst:77`\n- [ ] https://joblib.readthedocs.io/en/latest/parallel.html#avoiding-over-subscription-of-cpu-resources — `doc/computing/parallelism.rst:197`\n- [ ] https://scipy.github.io/devdocs/building/understanding_meson.html — `doc/developers/tips.rst:417`\n- [ ] http://blog.evernote.com/tech/2013/01/22/stay-classified/ — `doc/testimonials/testimonials.rst:151`\n- [ ] https://www.brandwatch.com/peerindex-and-brandwatch — `doc/testimonials/testimonials.rst:419`, `:443`\n- [ ] http://brainvisa.info/biblio/lnao/en/Author/PERROT-M.html — `doc/whats_new/_contributors.rst:53`\n- [ ] https://staff.washington.edu/jakevdp/ — `doc/whats_new/_contributors.rst:55`\n\n## 3. Links to a section that does not exist (anchor not found)\n\nPlease check these in a browser before changing them: some pages build their\nsections with JavaScript, which a link checker cannot see.\n\nTo fix: open the target page and find the section's new id (hover over its ",
+      "comments": 2,
+      "created_at": "2026-11-23T15:43:40Z",
+      "first_seen": "2026-11-27T20:56:34+00:00",
+      "labels": [
+        "Sprint",
+        "good first issue",
+        "Needs Decision",
+        "Meta-issue"
+      ],
+      "repo": "scikit-learn/scikit-learn",
+      "score": 2.8,
+      "title": "Fix broken links in the documentation",
+      "url": "https://github.com/scikit-learn/scikit-learn/issues/35497"
+    }
+  },
   "sent": [],
   "stats": [
     {
@@ -372,6 +389,22 @@
       "new_total": 0,
       "pool_size": 0,
       "time": "2026-11-27T07:42:40+00:00"
+    },
+    {
+      "command": "collect",
+      "new_per_repo": {
+        "gradio-app/gradio": 0,
+        "huggingface/datasets": 0,
+        "huggingface/peft": 0,
+        "huggingface/transformers": 0,
+        "keras-team/keras": 0,
+        "langchain-ai/langchain": 0,
+        "run-llama/llama_index": 0,
+        "scikit-learn/scikit-learn": 1
+      },
+      "new_total": 1,
+      "pool_size": 1,
+      "time": "2026-11-27T20:56:34+00:00"
     }
   ]
 }
