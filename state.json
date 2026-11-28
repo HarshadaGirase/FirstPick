@@ -401,6 +401,22 @@
       "seconds_per_issue": 0,
       "sent": 0,
       "time": "2026-11-27T22:16:17+00:00"
+    },
+    {
+      "command": "collect",
+      "new_per_repo": {
+        "gradio-app/gradio": 0,
+        "huggingface/datasets": 0,
+        "huggingface/peft": 0,
+        "huggingface/transformers": 0,
+        "keras-team/keras": 0,
+        "langchain-ai/langchain": 0,
+        "run-llama/llama_index": 0,
+        "scikit-learn/scikit-learn": 0
+      },
+      "new_total": 0,
+      "pool_size": 0,
+      "time": "2026-11-28T07:11:32+00:00"
     }
   ]
 }
